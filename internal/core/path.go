@@ -806,28 +806,31 @@ func (pa *path) startRecording() {
 				env["MTX_SEGMENT_PATH"] = segmentPath
 				env["MTX_SEGMENT_DURATION"] = strconv.FormatFloat(segmentDuration.Seconds(), 'f', -1, 64)
 
-				pa.conf.RunOnRecordSegmentComplete = os.Expand(pa.conf.RunOnRecordSegmentComplete, func(variable string) string {
+				requestURL := os.Expand(pa.conf.RunOnRecordSegmentComplete, func(variable string) string {
 					if value, ok := env[variable]; ok {
 						return value
 					}
 					return os.Getenv(variable)
 				})
-
-				pa.Log(logger.Info, "runOnRecordSegmentComplete command launched")
-
-				requestURL := pa.conf.RunOnRecordSegmentComplete
-				res, err := http.Get(requestURL)
-				if err != nil {
-					pa.Log(logger.Error, err.Error())
-				}
-
-				fmt.Printf("client: got response!\n")
-				fmt.Printf("client: status code: %d\n", res.StatusCode)
+				
+				go sendRequest(pa, requestURL)
 			}
 		},
 		Parent: pa,
 	}
 	pa.recorder.Initialize()
+}
+
+func sendRequest(pa *path, requestURL string) {
+	pa.Log(logger.Info, "runOnRecordSegmentComplete command launched")
+
+	res, err := http.Get(requestURL)
+	if err != nil {
+		pa.Log(logger.Error, err.Error())
+	}
+
+	fmt.Printf("client: got response!\n")
+	fmt.Printf("client: status code: %d\n", res.StatusCode)
 }
 
 func (pa *path) executeRemoveReader(r defs.Reader) {
