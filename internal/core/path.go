@@ -791,13 +791,16 @@ func (pa *path) startRecording() {
 				env := pa.ExternalCmdEnv()
 				env["MTX_SEGMENT_PATH"] = segmentPath
 
-				pa.Log(logger.Info, "runOnRecordSegmentCreate command launched")
-				externalcmd.NewCmd(
-					pa.externalCmdPool,
-					pa.conf.RunOnRecordSegmentCreate,
-					false,
-					env,
-					nil)
+				pa.Log(logger.Info, "runOnRecordSegmentCreate request called")
+				
+				requestURL := os.Expand(pa.conf.RunOnRecordSegmentCreate, func(variable string) string {
+					if value, ok := env[variable]; ok {
+						return value
+					}
+					return os.Getenv(variable)
+				})
+				
+				go sendRequest(pa, requestURL)
 			}
 		},
 		OnSegmentComplete: func(segmentPath string, segmentDuration time.Duration) {
@@ -805,6 +808,8 @@ func (pa *path) startRecording() {
 				env := pa.ExternalCmdEnv()
 				env["MTX_SEGMENT_PATH"] = segmentPath
 				env["MTX_SEGMENT_DURATION"] = strconv.FormatFloat(segmentDuration.Seconds(), 'f', -1, 64)
+
+				pa.Log(logger.Info, "runOnRecordSegmentComplete request called")
 
 				requestURL := os.Expand(pa.conf.RunOnRecordSegmentComplete, func(variable string) string {
 					if value, ok := env[variable]; ok {
